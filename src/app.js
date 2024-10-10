@@ -5,6 +5,7 @@ const helmet = require("helmet");
 require("dotenv").config();
 
 const userRoutes = require("./routes/userRoutes");
+const bannerRoutes = require("./routes/bannerRoutes");
 const errorMiddleware = require("./middleware/errorMiddleware");
 
 const app = express();
@@ -26,6 +27,7 @@ mongoose
 
 // Routes
 app.use("/api/users", userRoutes);
+app.use("/api/banner", bannerRoutes);
 app.get("/", (req, res) => {
   res.send("Welcome to the API");
 });

@@ -1,3 +1,4 @@
+const User = require("../models/userModel");
 const Banner = require("../models/bannerModel");
 const { upload, uploadToS3 } = require("../middleware/mediaupload");
 const uuid = require("uuid");
@@ -59,6 +60,7 @@ exports.uploadBanner = [
           dimensions: `${bannerHeight}x${bannerWidth}`,
           nameOfSite,
           role: user.role,
+          bannerId: uuid.v4(),
         });
         newBanner.save().then((data) => {
           return successResponse(res, "Banner uploaded successfully", data);
@@ -69,3 +71,77 @@ exports.uploadBanner = [
     }
   },
 ];
+
+// get banners by workerId
+
+exports.getBanners = async (req, res) => {
+  try {
+    const { workerId } = req.params;
+    const banners = await Banner.find({ workerId });
+    if (banners.length === 0) {
+      return notFoundResponse(res, "No banners found");
+    } else {
+      return successResponse(res, "Banners retrieved successfully", banners);
+    }
+  } catch (err) {
+    return failureResponse(res, err.message);
+  }
+};
+
+// get all banners
+
+exports.getAllBanners = async (req, res) => {
+  try {
+    const banners = await Banner.find();
+    if (banners.length === 0) {
+      return notFoundResponse(res, "No banners found");
+    } else {
+      return successResponse(res, "Banners retrieved successfully", banners);
+    }
+  } catch (err) {
+    return failureResponse(res, err.message);
+  }
+}
+
+// get banner by bannerId
+
+exports.getBanner = async (req, res) => {
+  try {
+    const { bannerId } = req.params;
+    const banner = await Banner.findOne({ bannerId });
+    if (!banner) {
+      return notFoundResponse(res, "Banner not found");
+    } else {
+      return successResponse(res, "Banner retrieved successfully", banner);
+    }
+  }
+  catch (err) {
+    return failureResponse(res, err.message);
+  }
+}
+
+// getbannerbylocation
+
+exports.getBannerByLocation = async (req, res) => {
+  try {
+    const { lat, lng } = req.params;
+    const banners = await Banner.find({
+      bannerLocation: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [parseFloat(lng), parseFloat(lat)],
+          },
+          $maxDistance: 10000,
+        },
+      },
+    });
+    if (banners.length === 0) {
+      return notFoundResponse(res, "No banners found");
+    } else {
+      return successResponse(res, "Banners retrieved successfully", banners);
+    }
+  } catch (err) {
+    return failureResponse(res, err.message);
+  }
+};
