@@ -7,90 +7,214 @@ const {
   notFoundResponse,
   failureResponse,
 } = require("../middleware/responseTemplate");
-const uuid = require("uuid");
 
+exports.registerUser = async (req, res) => {
+  try {
+    const {
+      fullName,
+      phone,
+      pin,
+      role,
+      address,
+      state,
+      city,
+      pincode,
+      aadharCard,
+      bankDetails,
+      perSqFtPrice,
+      totalSqFt,
+    } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ phone });
+    if (existingUser) {
+      return badRequestResponse(res, "User already exists");
+    }
+
+    const newUser = new User({
+      fullName,
+      phone,
+      pin,
+      role,
+      address,
+      state,
+      city,
+      pincode,
+      aadharCard,
+      bankDetails,
+      perSqFtPrice,
+      totalSqFt,
+    });
+
+    await newUser.save();
+
+    successResponse(res, "User created successfully", newUser);
+  } catch (error) {
+    failureResponse(res, error.message);
+  }
+};
 
 exports.loginUser = async (req, res) => {
   try {
     const { phone, pin } = req.body;
+
+    // Find the user by phone number
     const user = await User.findOne({ phone });
     if (!user) {
       return badRequestResponse(res, "User not found");
     }
+
+    // Verify the pin
     if (user.pin !== pin) {
       return unauthorizedResponse(res, "Invalid pin");
     }
-    res.json({ message: "User logged in successfully", user });
+
+    successResponse(res, "User logged in successfully", user);
   } catch (error) {
-    res.status(400).json({ message: "Error logging in user" });
+    failureResponse(res, error.message);
   }
 };
 
-exports.workerOnboarding = [
-  upload.fields([
-    { name: "profilePicture", maxCount: 1 },
-    { name: "idProof", maxCount: 1 },
-  ]),
+exports.getAllUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const users = await User.find()
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    successResponse(res, "Users fetched successfully", users);
+  } catch (error) {
+    failureResponse(res, error.message);
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+
+    if (!user) {
+      return notFoundResponse(res, "User not found");
+    }
+
+    successResponse(res, "User fetched successfully", user);
+  } catch (error) {
+    failureResponse(res, error.message);
+  }
+};
+
+exports.updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      fullName,
+      address,
+      state,
+      city,
+      pincode,
+      perSqFtPrice,
+      totalSqFt,
+    } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      {
+        fullName,
+        address,
+        state,
+        city,
+        pincode,
+        perSqFtPrice,
+        totalSqFt,
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      return notFoundResponse(res, "User not found");
+    }
+
+    successResponse(res, "User updated successfully", user);
+  } catch (error) {
+    failureResponse(res, error.message);
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findByIdAndDelete(id);
+
+    if (!user) {
+      return notFoundResponse(res, "User not found");
+    }
+
+    successResponse(res, "User deleted successfully");
+  } catch (error) {
+    failureResponse(res, error.message);
+  }
+};
+
+exports.getUserWallet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+
+    if (!user) {
+      return notFoundResponse(res, "User not found");
+    }
+
+    successResponse(res, "User wallet fetched successfully", user.wallet);
+  } catch (error) {
+    failureResponse(res, error.message);
+  }
+};
+
+exports.updateUserWallet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { balance, transaction } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          "wallet.balance": balance,
+          "wallet.transaction": transaction,
+        },
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      return notFoundResponse(res, "User not found");
+    }
+
+    successResponse(res, "User wallet updated successfully", user.wallet);
+  } catch (error) {
+    failureResponse(res, error.message);
+  }
+};
+
+exports.uploadProfilePicture = [
+  upload.single("profilePicture"),
   async (req, res) => {
     try {
-      const {
-        fullName,
-        phone,
-        role,
-        address,
-        aadharCard,
-        state,
-        city,
-        pincode,
-      } = req.body;
-      const user = await User.findOne({ phone: phone });
-      if (user) {
-        return successResponse(res, "User already exists", user);
-      }
-      const uid = uuid.v4();
-      const profilePicture = req.files["profilePicture"][0];
-      const idProof = req.files["idProof"][0];
-      const pin = Math.floor(1000 + Math.random() * 9000);
+      const { id } = req.params;
+      const profilePicture = await uploadToS3(req.file, id);
 
-      const profilePictureData = await uploadToS3(profilePicture, uid).then(
-        (data) => {
-          let format = uid + "." + data.Key.split(".")[1];
-          return (
-            "https://usc1.contabostorage.com/f49065475849480fbcd19fb8279b2f98:canulo/zois/" +
-            format
-          );
-        }
+      const user = await User.findByIdAndUpdate(
+        id,
+        { profilePicture },
+        { new: true }
       );
 
-      const idProofData = await uploadToS3(idProof, uid).then((data) => {
-        let format = uid + "." + data.Key.split(".")[1];
-        return (
-          "https://usc1.contabostorage.com/f49065475849480fbcd19fb8279b2f98:canulo/zois/" +
-          format
-        );
-      });
+      if (!user) {
+        return notFoundResponse(res, "User not found");
+      }
 
-      const newUser = new User({
-        fullName,
-        phone,
-        role,
-        address,
-        profilePicture: profilePictureData,
-        idProof: idProofData,
-        uid,
-        pin,
-        aadharCard,
-        state,
-        city,
-        pincode,
-      });
-
-      await newUser.save();
-
-      successResponse(res, "User created and files uploaded successfully", {
-        newUser,
-        profilePictureData,
-        idProofData,
+      successResponse(res, "Profile picture uploaded successfully", {
+        profilePictureUrl: user.profilePicture,
       });
     } catch (error) {
       failureResponse(res, error.message);
@@ -98,12 +222,28 @@ exports.workerOnboarding = [
   },
 ];
 
-exports.allUsers = async (req, res) => {
-  try {
-    const users = await User.find();
-    successResponse(res, "All users fetched", users);
-  } catch (error) {
-    failureResponse(res, error.message);
-  }
-}
+exports.uploadIDProof = [
+  upload.single("idProof"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const idProof = await uploadToS3(req.file, id);
 
+      const user = await User.findByIdAndUpdate(
+        id,
+        { idProof },
+        { new: true }
+      );
+
+      if (!user) {
+        return notFoundResponse(res, "User not found");
+      }
+
+      successResponse(res, "ID proof uploaded successfully", {
+        idProofUrl: user.idProof,
+      });
+    } catch (error) {
+      failureResponse(res, error.message);
+    }
+  },
+];
