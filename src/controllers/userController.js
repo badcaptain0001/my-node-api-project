@@ -106,15 +106,8 @@ exports.getUserById = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      fullName,
-      address,
-      state,
-      city,
-      pincode,
-      perSqFtPrice,
-      totalSqFt,
-    } = req.body;
+    const { fullName, address, state, city, pincode, perSqFtPrice, totalSqFt } =
+      req.body;
 
     const user = await User.findByIdAndUpdate(
       id,
@@ -127,7 +120,7 @@ exports.updateUser = async (req, res) => {
         perSqFtPrice,
         totalSqFt,
       },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {
@@ -183,7 +176,7 @@ exports.updateUserWallet = async (req, res) => {
           "wallet.transaction": transaction,
         },
       },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {
@@ -206,7 +199,7 @@ exports.uploadProfilePicture = [
       const user = await User.findByIdAndUpdate(
         id,
         { profilePicture },
-        { new: true }
+        { new: true },
       );
 
       if (!user) {
@@ -229,11 +222,7 @@ exports.uploadIDProof = [
       const { id } = req.params;
       const idProof = await uploadToS3(req.file, id);
 
-      const user = await User.findByIdAndUpdate(
-        id,
-        { idProof },
-        { new: true }
-      );
+      const user = await User.findByIdAndUpdate(id, { idProof }, { new: true });
 
       if (!user) {
         return notFoundResponse(res, "User not found");
